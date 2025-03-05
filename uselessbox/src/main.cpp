@@ -1,13 +1,7 @@
 #include <Arduino.h>
 
-const int switch1 = 2;
-const int switch2 = 3;
-const int switch3 = 4;
-const int switch4 = 5;
-const int switch5 = 6;
-const int switch6 = 7;
-const int switch7 = 8;
-const int switch8 = 9;
+
+const int switches_pinout [8] = {2,3,4,5,6,7,8,9};
 
 int current_position = 0;
 
@@ -15,34 +9,48 @@ int current_position = 0;
 // put function declarations here:
 int flip_switch(int);
 int flip_switches();
-int read_switches();
 bool check_switch();
 
 bool open_close_box();
 int open_box(bool);
 int array_switches [8] = {0,0,0,0,0,0,0,0};
+int stack_past_switches [9] = {0,0,0,0,0,0,0,0,0};
 
 
 void setup() {
-
-  pinMode(switch1, INPUT);
-  pinMode(switch2, INPUT);
-  pinMode(switch3, INPUT);
-  pinMode(switch4, INPUT);
-  pinMode(switch5, INPUT);
-  pinMode(switch6, INPUT);
-  pinMode(switch7, INPUT);
-  pinMode(switch8, INPUT);
-
+  for (int i = 0; i < 8; i++)
+  {
+    pinMode(switches_pinout[i],INPUT);
+  }
   Serial.begin(9600); 
 
 }
 
 void loop() {
 
-  read_switches();                        // writes array with on/off switches
+  update_switch_array();                    // writes array with on/off switches
   open_box(check_open_close_box());       // opens or closes box depending on open switches
   flip_switches();
+
+}
+
+
+void update_switch_array()
+{
+  for (int i = 0; i < 8; i++)
+  {
+    array_switches[i] = digitalRead(switches_pinout[i]);
+    if (digitalRead(switches_pinout[i])
+    {
+      for (int i=0; i < 9; i++){
+        if (stack_past_switches[i] == 0){
+            stack_past_switches[i] = i+1;
+            break;
+        }
+      }
+    }
+    
+  }
 
 }
 
@@ -50,6 +58,7 @@ int flip_switch(int position)             //goes to specified switch and flips s
 {
   //go to position "postition"
   // flips switch
+  // updates stack
 
 }
 
@@ -77,12 +86,12 @@ int flip_switches()                       // flips closest switch
     }
     
   }
-  if (active_switch == false)
+  if (active_switch == false)             // if no switch is flipped nothing happens
   {
     return 0;
   }
   
-
+//-------------------MODE 1 (CLOSEST SWITCH)------------------------------------
   int back = 0                                    // checks distance back and front
   int front = 0
   
@@ -123,21 +132,35 @@ int flip_switches()                       // flips closest switch
   {
     flip_switch(current_position - back);
   }
-  
-  
 
 
-}
+//------------------MODE 2 (RANDOM SWITCH)-------------------------------------
 
-int read_switches()                       // updates array on open switches
+int counter_active_switches = 0;
+int array_active_switches[8] ={0,0,0,0,0,0,0,0};
+for (int i = 0; i < 8; i++)
 {
-  for (int i = 0; i < 8; i++)
-  {
-    int switch_on_off = digitalRead(i+2);
-    if ((switch_on_off)== 1)
+    if (array_switches[i]==1)
     {
-      array_switches[i]=1;
+      array_active_switches[i] = i;
+      counter_active_switches += 1;
     }
+}
+int random_switch_auswahl = random(counter_active_switches);
+flip_switch(random_switch_auswahl);
+
+//-----------------MODE 3 (FOLLOW USER)-----------------------------------------
+
+flip_switch(stack_past_switches[0]);
+int temporary_array[9];
+for (int i = 1; i < 9; i++)
+{
+      temporary_array[i-1]=stack_past_switches[i];
+  }  
+  temporary_array[8]=0;
+for (int i = 0; i < 8; i++)
+  {
+      stack_past_switches[i]=temporary_array[i];
   }
 
 }
