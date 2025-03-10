@@ -31,6 +31,7 @@ void setup() {
     pinMode(switches_pinout[i],INPUT);  //pins for switches
   }
     pinMode(A0, INPUT);  //reset to 0 pin
+    pinMode(A1,INPUT);   //mode selection potentiometer
   Serial.begin(9600); 
   return_to_zero();
 
@@ -102,13 +103,13 @@ void return_to_zero(){
   Serial.println(back_to_zero);
   while (back_to_zero == 0)
   {
-    back_to_zero = digitalRead(A0);
-    current_step = current_step - 4;
+    back_to_zero = digitalRead(A0); //readswitch
+    current_step = current_step - 4; //move towards zero
     Serial.print("Current step: ");
     Serial.println(current_step);
     delay(10);
   }
-  current_step = 0;
+  current_step = 0;               //set new 0
   Serial.print("Current step: ");
   Serial.println(current_step);
 
