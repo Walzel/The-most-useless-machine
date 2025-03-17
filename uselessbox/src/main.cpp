@@ -2,8 +2,9 @@
 
 
 const int switches_pinout [8] = {2,3,4,5,6,7,8,9};
-const long switches_steps[8] = {400,3000,6000,9000,12000,15000,18000,21000};
+long switches_steps[8] = {400,3000,6000,9000,12000,15000,18000,21000};
 
+int current_switching_mode = 0;
 int current_position = 0;
 long current_step = 5000;
 int next_switch = 0;
@@ -12,13 +13,17 @@ int next_switch = 0;
 volatile bool button_changed = false;
 
 
-// put function declarations here:
+//----------------------FUNCTIONS-------------------------
 void flip_switch(int);
 bool check_switch();
+void make_step(bool forward_backward);
+void move_arm_to_switch();
 
-int flip_closest_switch();
-void flip_random_switch();
-void flip_user_switches();
+int set_closest_switch();
+int set_random_switch();
+int set_user_switch();
+
+void set_next_switch();
 
 void return_to_zero();
 
@@ -81,9 +86,11 @@ ISR(PCINT0_vect) {
 
 
 void loop() {
-
+  if (button_changed) {
+    set_next_switch();  // Call function when any button is pressed
+    button_changed = false;  // Reset flag
+}
   flip_switch(next_switch);
-
   
 }
 
@@ -151,12 +158,12 @@ int set_mode(){
   
 
 }
-int findClosestIndex(int arr[], int arrSize, int targetValue) {
-  int closestIndex = 0;            // Start with the first element
-  int minDifference = abs(arr[0] - targetValue);  // Calculate the difference for the first element
+int findClosestIndex(long arr[], int arrSize, long targetValue) {
+  long closestIndex = 0;            // Start with the first element
+  long minDifference = abs(arr[0] - targetValue);  // Calculate the difference for the first element
 
   for (int i = 1; i < arrSize; i++) {  // Loop through the rest of the array
-      int currentDifference = abs(arr[i] - targetValue); // Calculate the current difference
+      long currentDifference = abs(arr[i] - targetValue); // Calculate the current difference
 
       // If the current difference is smaller, update the closest index
       if (currentDifference < minDifference) {
@@ -173,13 +180,33 @@ int findClosestIndex(int arr[], int arrSize, int targetValue) {
 void flip_switch(int position)             //goes to specified switch and flips switch
 {
   
-  open_box(check_open_close_box);
+  open_box(check_open_close_box());
   if (current_step < switches_steps[next_switch])
+  {
     make_step(1); //move 1step forward
-  if (current_step > switches_steps[next_switch])
+  }
+  else if (current_step > switches_steps[next_switch])
+  {
     make_step(0); //move 1step backwards
-  if (current_step == switches_steps[next_switch])
+  }
+  else if (current_step == switches_steps[next_switch])
+  {
     move_arm_to_switch(); //switches the switch
+    if (current_switching_mode==2)
+    {
+      int temporary_array[9];                                  //FIFO on array
+      for (int i = 1; i < 9; i++)
+      {
+            temporary_array[i-1]=stack_past_switches[i];
+        }  
+        temporary_array[8]=0;
+      for (int i = 0; i < 8; i++)
+        {
+            stack_past_switches[i]=temporary_array[i];
+        }
+    }
+  }
+    
 
 }
 void set_next_switch()
@@ -187,28 +214,24 @@ void set_next_switch()
   //read all the switch_pins
   update_switch_array();
   //is posibility to switch
-  if (check_open_close_box==false)
+  if (check_open_close_box()==true)
   {
-    break;
-  }
-  else
-  {
-    open_box(check_open_close_box);
+    open_box(check_open_close_box());
   }
   //set mode
-  int mode = set_mode();
+  current_switching_mode = set_mode();
   //define next swich
-  if (mode == 0)
+  if (current_switching_mode == 0)
   {
     next_switch = set_random_switch();
   }
-  else if (mode == 1)
+  else if (current_switching_mode == 1)
   {
-    next_switch = set set_closest_switch();
+    next_switch = set_closest_switch();
   }
-  else if (mode ==2)
+  else if (current_switching_mode ==2)
   {
-    next_switch == set_user_switch();
+    next_switch = set_user_switch();
   }
   
   
@@ -228,7 +251,6 @@ void open_box(bool open_close)             // opens or closes box depnding on in
   }
   
 }
-
 void make_step(bool forward_backward)
 {
   //1 steps auf einmal
@@ -274,15 +296,15 @@ int set_closest_switch()                       // flips closest switch
 
   if (front == back)                       //flips closest switch
   {
-    flip_switch(current_position-back);
+    return (current_position-back);
   }
   else if (front < back)
   {
-    flip_switch(current_position + front);
+    return (current_position + front);
   }
   else if (back < front)
   {
-    flip_switch(current_position - back);
+    return (current_position - back);
   }
 }
 //------------------MODE 2 (RANDOM SWITCH)-------------------------------------
@@ -302,17 +324,7 @@ int set_random_switch(){
 }
 //-----------------MODE 3 (FOLLOW USER)-----------------------------------------
 int set_user_switch(){
-flip_switch(stack_past_switches[0]);
-  int temporary_array[9];
-  for (int i = 1; i < 9; i++)
-  {
-        temporary_array[i-1]=stack_past_switches[i];
-    }  
-    temporary_array[8]=0;
-  for (int i = 0; i < 8; i++)
-    {
-        stack_past_switches[i]=temporary_array[i];
-    }
+  return (stack_past_switches[0]);
 
 }
 
