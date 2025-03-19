@@ -4,6 +4,8 @@
 
 const int switches_pinout [8] = {2,3,4,5,6,7,8,9};
 long switches_steps[8] = {400,3000,6000,9000,12000,15000,18000,21000};
+long switcher_steps[3] = {0,100,200}; //[zero point, active, switch action]
+long opener_steps[2] = {0,200}; //[closed, opened box]
 
 int current_switching_mode = 0;
 int next_switch = 0;
@@ -193,7 +195,7 @@ void return_to_zero(){
     make_step(0,10,11,speed_switcher_delay*4);
     back_to_zero = digitalRead(2); //readswitch
   }
-  switcher_current_step = 0;  
+  switcher_current_step = switcher_steps[1];  
 
 
 }
@@ -296,13 +298,81 @@ void set_next_switch()
 //----------------ACTION FUNCTIONS
 void open_box(bool open_close)             // opens or closes box depnding on input
 {  
-  if (open_close==true)
+  if (open_close==true) //open box
   {
-    //open lid
+    long steps_to_move_opener = opener_steps[1] - opener_current_step;
+    long steps_to_move_switcher = switcher_steps[1] -switcher_current_step;
+    //move opener
+    if (steps_to_move_opener > 0)
+    {
+      for (long i = 0; i < steps_to_move_opener; i++)
+      {
+        make_step(1,12,13,speed_opener_delay);
+      }
+      
+    }   
+    else
+    {
+      for (long i = 0; i < -steps_to_move_opener; i++)
+      {
+        make_step(0,12,13,speed_opener_delay);
+      }
+    }
+    //move switcher
+    if (steps_to_move_switcher > 0)
+    {
+      for (long i = 0; i < steps_to_move_switcher; i++)
+      {
+        make_step(1,10,11,speed_switcher_delay);
+      }
+      
+    }   
+    else
+    {
+      for (long i = 0; i < -steps_to_move_switcher; i++)
+      {
+        make_step(0,10,11,speed_switcher_delay);
+      }
+    }
+
   }
-  else
+
+  else //close box
   {
-    //close lid
+    long steps_to_move_opener = opener_steps[0] - opener_current_step;
+    long steps_to_move_switcher = switcher_steps[0] -switcher_current_step;
+    //move opener
+    if (steps_to_move_opener > 0)
+    {
+      for (long i = 0; i < steps_to_move_opener; i++)
+      {
+        make_step(1,12,13,speed_opener_delay);
+      }
+      
+    }   
+    else
+    {
+      for (long i = 0; i < -steps_to_move_opener; i++)
+      {
+        make_step(0,12,13,speed_opener_delay);
+      }
+    }
+    //move switcher
+    if (steps_to_move_switcher > 0)
+    {
+      for (long i = 0; i < steps_to_move_switcher; i++)
+      {
+        make_step(1,10,11,speed_switcher_delay);
+      }
+      
+    }   
+    else
+    {
+      for (long i = 0; i < -steps_to_move_switcher; i++)
+      {
+        make_step(0,10,11,speed_switcher_delay);
+      }
+    }
   }
   
 }
