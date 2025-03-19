@@ -1,6 +1,7 @@
 #include <Arduino.h>
 
 
+
 const int switches_pinout [8] = {2,3,4,5,6,7,8,9};
 long switches_steps[8] = {400,3000,6000,9000,12000,15000,18000,21000};
 
@@ -16,17 +17,21 @@ long opener_current_step = 0;
 long switcher_current_step = 0;
 
 
+//Stepper speeds #todo set speeds properly
+int speed_mover_delay = 20;
+int speed_opener_delay = 20;
+int speed_switcher_delay = 20;
 
-//int speed = xx;                    für geschwindigkeit der steps definieren
+
 
 volatile bool button_changed = false;
 
 
 //----------------------FUNCTIONS-------------------------
-void flip_switch(int);
+void main_movement_control(int next_switch);
 bool check_switch();
-void make_step(bool forward_backward);
-void move_arm_to_switch();
+void make_step(bool fd_or_bk, int pin_DIR, int pin_OPTO, int delay_time);
+void move_arm_to_switch(int switch_select);
 
 int set_closest_switch();
 int set_random_switch();
@@ -42,8 +47,6 @@ void open_box(bool);
 int array_switches [8] = {0,0,0,0,0,0,0,0};
 int stack_past_switches [9] = {0,0,0,0,0,0,0,0,0};
 
-//#todo
-//implement move stepper function
 
 
 
@@ -53,11 +56,20 @@ void setup() {
     pinMode(switches_pinout[i],INPUT_PULLUP);  //pins for switches
   }
   pinMode(A0, INPUT);  //reset_mover
+  pinMode(A1,INPUT);   //reset opener
   pinMode(A2,INPUT);   //mode selection potentiometer
 
 
-//#todo
-//implement pin setup for steppers
+  //STEPPER MOVER
+  pinMode(8, OUTPUT);
+  pinMode(9, OUTPUT);
+  //STEPPER SWITCHER
+  pinMode(10, OUTPUT);
+  pinMode(11, OUTPUT);
+  //STEPPER OPENER
+  pinMode(12, OUTPUT);
+  pinMode(13, OUTPUT);
+
 
 
     // Enable Pin Change Interrupts for PCINT0 (D8-D13) and PCINT2 (D0-D7)
@@ -99,15 +111,12 @@ ISR(PCINT0_vect) {
 }
 
 
-
-
-
 void loop() {
   if (button_changed) {
     set_next_switch();  // Call function when any button is pressed
     button_changed = false;  // Reset flag
-}
-  flip_switch(next_switch);
+  }
+  main_movement_control(next_switch);
   
 }
 
@@ -138,28 +147,53 @@ void update_switch_array()
       }
 }
 void return_to_zero(){
-  //-----------------MOVER RESET---------------------
-  //move 400 steps fd
-  current_step =+ 400;
-  Serial.print("Current step: ");
-  Serial.println(current_step);
+  while(digitalRead(0)==0)                //required to switch first switch on to activate process
+  {
+    delay(250);
+  }
+
+
+  //MOVER RESET
+  for (int i = 0; i < 400; i++)
+  {
+    make_step(1,8,9,speed_mover_delay*2);
+  }
   int back_to_zero = digitalRead(A0);
-  Serial.println(back_to_zero);
   while (back_to_zero == 0)
   {
+    make_step(0,8,9,speed_mover_delay*4);
     back_to_zero = digitalRead(A0); //readswitch
-    current_step = current_step - 4; //move towards zero
-    Serial.print("Current step: ");
-    Serial.println(current_step);
-    delay(10);
   }
   current_step = 0;               //set new 0
-  Serial.print("Current step: ");
-  Serial.println(current_step);
-  //---------------RESET OPENER-------------------------
-  //like above
-  //--------------RESET SWITCH----------------------
-  //jse one of the switches as reset button
+
+
+  //RESET OPENER
+  for (int i = 0; i < 400; i++)   //#todo check right direction
+  {
+    make_step(1,10,11,speed_opener_delay*2);
+  }
+  back_to_zero = digitalRead(A1);
+  while (back_to_zero == 0)
+  {
+    make_step(0,10,11,speed_opener_delay*4);
+    back_to_zero = digitalRead(A0); //readswitch
+  }
+  opener_current_step = 0;               //set new 0
+
+
+  //RESET SWITCH
+  move_arm_to_switch(0);
+  for (int i = 0; i < 400; i++)   //#todo check right direction 
+  {
+    make_step(1,12,13,speed_switcher_delay*2);
+  }
+  back_to_zero = digitalRead(2);
+  while (back_to_zero == 0)      
+  {
+    make_step(0,10,11,speed_switcher_delay*4);
+    back_to_zero = digitalRead(2); //readswitch
+  }
+  switcher_current_step = 0;  
 
 
 }
@@ -199,21 +233,20 @@ int findClosestIndex(long arr[], int arrSize, long targetValue) {
 
 
 //----------------MAIN FUNCTIONS--------------------------------------------
-void flip_switch(int position)             //goes to specified switch and flips switch
+void main_movement_control(int position)             //goes to specified switch and flips switch
 {
-  
   open_box(check_open_close_box());
   if (current_step < switches_steps[next_switch])
   {
-    make_step(1); //move 1step forward
+    make_step(1,8,9,speed_mover_delay); //move 1step forward
   }
   else if (current_step > switches_steps[next_switch])
   {
-    make_step(0); //move 1step backwards
+    make_step(0,8,9,speed_mover_delay); //move 1step backwards
   }
   else if (current_step == switches_steps[next_switch])
   {
-    move_arm_to_switch(); //switches the switch
+    move_arm_to_switch(next_switch); //switches the switch
     if (current_switching_mode==2)
     {
       int temporary_array[9];                                  //FIFO on array
@@ -273,15 +306,43 @@ void open_box(bool open_close)             // opens or closes box depnding on in
   }
   
 }
-void make_step(bool forward_backward)
+void make_step(bool forward_backward, int pin_DIR, int pin_OPTO,int delay_time)
 {
-  //1 steps auf einmal
+  if (forward_backward)
+  {
+    //1 step forward
+  }
+  else
+  {
+    //1 step backwards
+  }
+  delayMicroseconds(delay_time);
+  
 }
-void move_arm_to_switch()
+void switches_switch(int switch_select)
 {
-  //move arm to switch and back
+  make_step(1,10,11,speed_switcher_delay);
 }
-
+void move_arm_to_switch(int switch_select)
+{
+  long steps_to_move = switches_steps[switch_select]-current_step;
+  if (steps_to_move > 0)
+  {
+    for (long i = 0; i < steps_to_move; i++)
+    {
+      make_step(1,8,9,speed_mover_delay);
+    }
+    
+  }
+  else
+  {
+    for (long i = 0; i < -steps_to_move; i++)
+    {
+      make_step(0,8,9,speed_mover_delay);
+    }
+  }
+  
+}
 
 //-------------------MODE 1 (CLOSEST SWITCH)------------------------------------
 int set_closest_switch()                       // flips closest switch
@@ -324,7 +385,7 @@ int set_closest_switch()                       // flips closest switch
   {
     return (current_position + front);
   }
-  else if (back < front)
+  else
   {
     return (current_position - back);
   }
