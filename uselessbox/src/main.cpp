@@ -5,9 +5,18 @@ const int switches_pinout [8] = {2,3,4,5,6,7,8,9};
 long switches_steps[8] = {400,3000,6000,9000,12000,15000,18000,21000};
 
 int current_switching_mode = 0;
+int next_switch = 0;
+
+//MOVER
 int current_position = 0;
 long current_step = 5000;
-int next_switch = 0;
+//OPENER
+long opener_current_step = 0;
+//SWITCHER
+long switcher_current_step = 0;
+
+
+
 //int speed = xx;                    für geschwindigkeit der steps definieren
 
 volatile bool button_changed = false;
@@ -33,6 +42,9 @@ void open_box(bool);
 int array_switches [8] = {0,0,0,0,0,0,0,0};
 int stack_past_switches [9] = {0,0,0,0,0,0,0,0,0};
 
+//#todo
+//implement move stepper function
+
 
 
 void setup() {
@@ -40,8 +52,13 @@ void setup() {
   {
     pinMode(switches_pinout[i],INPUT_PULLUP);  //pins for switches
   }
-  pinMode(A0, INPUT);  //reset to 0 pin
-  pinMode(A1,INPUT);   //mode selection potentiometer
+  pinMode(A0, INPUT);  //reset_mover
+  pinMode(A2,INPUT);   //mode selection potentiometer
+
+
+//#todo
+//implement pin setup for steppers
+
 
     // Enable Pin Change Interrupts for PCINT0 (D8-D13) and PCINT2 (D0-D7)
   PCICR |= (1 << PCIE0) | (1 << PCIE2);  
@@ -121,6 +138,7 @@ void update_switch_array()
       }
 }
 void return_to_zero(){
+  //-----------------MOVER RESET---------------------
   //move 400 steps fd
   current_step =+ 400;
   Serial.print("Current step: ");
@@ -138,11 +156,15 @@ void return_to_zero(){
   current_step = 0;               //set new 0
   Serial.print("Current step: ");
   Serial.println(current_step);
+  //---------------RESET OPENER-------------------------
+  //like above
+  //--------------RESET SWITCH----------------------
+  //jse one of the switches as reset button
 
 
 }
 int set_mode(){
-  int mode_seletion = analogRead(A1);
+  int mode_seletion = analogRead(A2);
   if (mode_seletion < 340)
   {
     return 0;
