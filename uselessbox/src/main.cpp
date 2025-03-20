@@ -60,6 +60,7 @@ void setup() {
   pinMode(A0, INPUT);  //reset_mover
   pinMode(A1,INPUT);   //reset opener
   pinMode(A2,INPUT);   //mode selection potentiometer
+  pinMode(A3,INPUT_PULLUP);   //reset all
 
 
   //STEPPER MOVER
@@ -237,6 +238,15 @@ int findClosestIndex(long arr[], int arrSize, long targetValue) {
 //----------------MAIN FUNCTIONS--------------------------------------------
 void main_movement_control(int position)             //goes to specified switch and flips switch
 {
+  if (digitalRead(A3)==true)
+  {
+    return_to_zero();
+  }
+  else
+  {
+    return 0;
+  }
+  
   open_box(check_open_close_box());
   if (current_step < switches_steps[next_switch])
   {
