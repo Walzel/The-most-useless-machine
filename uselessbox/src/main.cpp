@@ -89,9 +89,8 @@ void setup() {
 
 
   Serial.begin(9600); 
-  //return_to_zero();
-  //set_next_switch();
-  //Serial.println(next_switch);
+  return_to_zero();
+  set_next_switch();
 
 }
 
@@ -122,58 +121,8 @@ ISR(PCINT0_vect) {
 
 
 
-
-
-
-
-
-int count_one_to_zero = 0;
-int count_zero_to_one = 0;
-int return_array[6];
-int stack_past_switches [6] = {-1,-1,-1,-1,-1,-1};
 void loop() 
 {
-  //-------------------------
-  count_one_to_zero = 0;
-  count_zero_to_one = 0;
-  int zero_to_one_array[6] = {-1,-1,-1,-1,-1,-1};
-  
-  for (int i = 0; i < 6; i++)
-  {
-    int switch_read = digitalRead(i+2);
-    if (array_switches[i]==0 && switch_read == 1)
-    {
-      zero_to_one_array[count_zero_to_one]=i;
-      count_zero_to_one ++;
-    }
-    if (array_switches[i]==1 && switch_read == 0)
-    {
-      count_one_to_zero ++;
-    }
-  }
-  for (int i = 0; i < 6; i++)
-  {
-    return_array[i]=stack_past_switches[i+count_one_to_zero];
-  }
-  for (int i = 6-count_one_to_zero; i < 6; i++)
-  {
-
-    return_array[i]=zero_to_one_array[i-count_one_to_zero];
-  }
-  for (int i = 0; i < 6; i++)
-  {
-    stack_past_switches[i] = return_array[i];
-  }
-  
-  read_switches();
-  for (int i = 0; i < 6; i++)
-  {
-    Serial.print(stack_past_switches[i]);
-  }
-  Serial.println("");
-  delay(1000);
-  
-  
 
   currentTime = millis();  // Get the current time
 
@@ -186,11 +135,7 @@ void loop()
     }
   
   
-  //main_movement_control(next_switch);
-
-
-  //open_box(digitalRead(4));
-
+  main_movement_control(next_switch);
 }
 
 
@@ -567,6 +512,17 @@ if (counter_active_switches==0)
 }
 //-----------------MODE 3 (FOLLOW USER)-----------------------------------------
 int set_user_switch(){
+  int secret_order [6] = {5,0,1,3,2,4};
+  for (int i = 0; i < 6; i++)
+  {
+    if (array_switches[secret_order[i]]==1)
+    {
+      return secret_order[i];
+    }
+    
+  }
+  
+  
   return -1;
 }
 
