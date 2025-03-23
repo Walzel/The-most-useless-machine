@@ -3,9 +3,9 @@
 
 
 const int switches_pinout [8] = {2,3,4,5,6,7};
-long switches_steps[6] = {20500,17000,13500,10000,6500,3500};
+long switches_steps[6] = {20500, 17240, 13980, 10720, 7460, 4200};
 int switcher_steps[3] = {0,800,1100}; //[zero point, active, switch action]
-int opener_steps[2] = {0,40}; //[closed, opened box]
+int opener_steps[2] = {0,60}; //[closed, opened box]
 int array_switches[6] = {0,0,0,0,0,0};
 
 int current_switching_mode = 0;
@@ -22,8 +22,8 @@ int switcher_current_step = 0;
 
 //Stepper speeds #todo set speeds properly
 int speed_mover_delay = 100;
-int speed_opener_delay = 5000;
-int speed_switcher_delay = 700;
+int speed_opener_delay = 3000;
+int speed_switcher_delay = 300;
 
 int queue_counter = 0;
 
@@ -49,7 +49,6 @@ bool open_close_box();
 bool check_open_close_box();
 void read_switches();
 void open_box(int open_close);
-int stack_past_switches [6] = {-1,-1,-1,-1,-1,-1};
 
 
 unsigned long lastCheckTime = 0;
@@ -90,15 +89,17 @@ void setup() {
 
 
   Serial.begin(9600); 
-  return_to_zero();
-  set_next_switch();
-  Serial.println(next_switch);
+  //return_to_zero();
+  //set_next_switch();
+  //Serial.println(next_switch);
 
 }
 
 //---------------------interrupt setup---------------------------
+int interrupt_reading_array[6];
 // ISR for pins D2-D7 (PCINT2 group)
 ISR(PCINT2_vect) {
+
   // Check for any pin change in the range D2-D7
   for (int i = 2; i <= 7; i++) {
       if (digitalRead(i) == LOW) { // Button pressed (active LOW)
@@ -119,26 +120,73 @@ ISR(PCINT0_vect) {
   }
 }
 
-int coutner = 0;
-void loop() {
+
+
+
+
+
+
+
+int count_one_to_zero = 0;
+int count_zero_to_one = 0;
+int return_array[6];
+int stack_past_switches [6] = {-1,-1,-1,-1,-1,-1};
+void loop() 
+{
+  //-------------------------
+  count_one_to_zero = 0;
+  count_zero_to_one = 0;
+  int zero_to_one_array[6] = {-1,-1,-1,-1,-1,-1};
+  
+  for (int i = 0; i < 6; i++)
+  {
+    int switch_read = digitalRead(i+2);
+    if (array_switches[i]==0 && switch_read == 1)
+    {
+      zero_to_one_array[count_zero_to_one]=i;
+      count_zero_to_one ++;
+    }
+    if (array_switches[i]==1 && switch_read == 0)
+    {
+      count_one_to_zero ++;
+    }
+  }
+  for (int i = 0; i < 6; i++)
+  {
+    return_array[i]=stack_past_switches[i+count_one_to_zero];
+  }
+  for (int i = 6-count_one_to_zero; i < 6; i++)
+  {
+
+    return_array[i]=zero_to_one_array[i-count_one_to_zero];
+  }
+  for (int i = 0; i < 6; i++)
+  {
+    stack_past_switches[i] = return_array[i];
+  }
+  
+  read_switches();
+  for (int i = 0; i < 6; i++)
+  {
+    Serial.print(stack_past_switches[i]);
+  }
+  Serial.println("");
+  delay(1000);
+  
+  
+
   currentTime = millis();  // Get the current time
 
     if ((currentTime - lastCheckTime) >= 200) {  // Check if 200ms have passed
         lastCheckTime = currentTime;  // Update the last check time
         if (button_changed) {
             set_next_switch();  // Call function when any button is pressed
-            Serial.print(coutner);
-            coutner ++;
             button_changed = false;  // Reset flag
         }
     }
-
-
   
-  main_movement_control(next_switch);
   
-
-  open_box(check_open_close_box());
+  //main_movement_control(next_switch);
 
 
   //open_box(digitalRead(4));
@@ -193,6 +241,9 @@ void return_to_zero(){
   opener_current_step = 0;               //set new 0
   
 
+  
+  
+
   //MOVER RESET
   for (int i = 1; i < 400; i++)
   {
@@ -206,6 +257,9 @@ void return_to_zero(){
   }
   current_step = 0;               //set new 0
   move_arm_to_switch(0);
+  
+
+
 
     //RESET SWITCHER
   for (int i = 0; i < 30; i++)   //#todo check right direction 
@@ -213,6 +267,11 @@ void return_to_zero(){
     make_step(0,10,11,speed_switcher_delay);
   }
   back_to_zero = digitalRead(2);
+  for (int i = 0; i < opener_steps[1]; i++)
+  {
+    make_step(1,12,13,speed_opener_delay);
+    opener_current_step =  opener_current_step + 1;
+  }
   while (back_to_zero == 1)      
   {
     make_step(1,10,11,speed_switcher_delay);
@@ -279,23 +338,26 @@ int main_movement_control(int position)             //goes to specified switch a
 {
   if (position == -1)
   {
-    //open_box(0);
+    open_box(0);
     return 0;
   }
   //open_box(1);
 
   if (current_step < switches_steps[next_switch])
   {
+    open_box(0);
     make_step(1,8,9,speed_mover_delay); //move 1step forward
     current_step = current_step + 1;
   }
   else if (current_step > switches_steps[next_switch])
   {
+    open_box(0);
     make_step(0,8,9,speed_mover_delay); //move 1step backwards
     current_step = current_step - 1;
   }
   else if (current_step == switches_steps[next_switch])
   {
+    open_box(1);
     for (int i = 2; i > 0; i--)
     {    
       long steps_to_move_switcher = switcher_steps[i] -switcher_current_step;
@@ -339,7 +401,6 @@ void set_next_switch()
   {
     next_switch = set_user_switch();
   }
-  Serial.println(current_switching_mode);
   
   
 }
@@ -350,9 +411,9 @@ void open_box(int open_close)             // opens or closes box depnding on inp
 
   if (open_close == 1)
   {
-    if (opener_current_step < 40)
+    if (opener_current_step < opener_steps[1])
     {
-      for (int i = 0; i < 40; i++)
+      for (int i = 0; i < opener_steps[1]; i++)
       {
         make_step(1,12,13,speed_opener_delay);
         opener_current_step = opener_current_step + 1;
@@ -382,15 +443,7 @@ void open_box(int open_close)             // opens or closes box depnding on inp
   }
   else if (open_close == 0)
   {
-    if (opener_current_step > 0)
-    {
-      for (int i = 0; i < 40; i++)
-      {
-        make_step(0,12,13,speed_opener_delay);
-        opener_current_step = opener_current_step - 1;
-      }
-      
-    }
+    
     if (switcher_current_step > switcher_steps[0])
     {
       while (switcher_current_step != switcher_steps[0])
@@ -407,6 +460,15 @@ void open_box(int open_close)             // opens or closes box depnding on inp
       {
         make_step(1,10,11,speed_switcher_delay);
         switcher_current_step = switcher_current_step + 1;
+      }
+      
+    }
+    if (opener_current_step > 0)
+    {
+      for (int i = 0; i < opener_steps[1]; i++)
+      {
+        make_step(0,12,13,speed_opener_delay);
+        opener_current_step = opener_current_step - 1;
       }
       
     }
@@ -505,14 +567,6 @@ if (counter_active_switches==0)
 }
 //-----------------MODE 3 (FOLLOW USER)-----------------------------------------
 int set_user_switch(){
-  for (int i = 5; i >= 0; i--)
-  {
-    if (stack_past_switches[i] != -1)
-    {
-      return stack_past_switches [i];
-    }
-    
-  }
-  return 0;
+  return -1;
 }
 
