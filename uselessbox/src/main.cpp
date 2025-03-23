@@ -138,7 +138,7 @@ void loop() {
   main_movement_control(next_switch);
   
 
-  //open_box(check_open_close_box());
+  open_box(check_open_close_box());
 
 
   //open_box(digitalRead(4));
