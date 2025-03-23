@@ -2207,6 +2207,16 @@
 	)
 	(wire
 		(pts
+			(xy 161.29 76.2) (xy 144.78 76.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "467d4dbb-687b-4332-9823-153ec623db19")
+	)
+	(wire
+		(pts
 			(xy 142.24 76.2) (xy 140.97 76.2)
 		)
 		(stroke
@@ -2417,6 +2427,16 @@
 	)
 	(wire
 		(pts
+			(xy 144.78 76.2) (xy 144.78 88.9)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "93bbfc16-9fa2-4d36-a221-71979c174dd7")
+	)
+	(wire
+		(pts
 			(xy 137.16 85.09) (xy 130.81 85.09)
 		)
 		(stroke
@@ -2564,6 +2584,16 @@
 			(type default)
 		)
 		(uuid "ca7f5142-62de-40b8-91c0-b8b4c1f36aea")
+	)
+	(wire
+		(pts
+			(xy 161.29 72.39) (xy 161.29 76.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cab91827-db6a-478b-87ec-80b096b3acf6")
 	)
 	(wire
 		(pts
@@ -2722,6 +2752,28 @@
 		(uuid "26339364-b0b4-461e-b48f-8cc89f510828")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 208.1809 143.51 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+	)
+	(global_label "GND"
+		(shape input)
+		(at 161.29 69.85 0)
+		(fields_autoplaced yes)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left)
+		)
+		(uuid "2c44297c-5b4f-4e9e-a295-831c47a48a7d")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 168.1457 69.85 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -3242,6 +3294,74 @@
 			(project "Schaltplan_box"
 				(path "/fda39497-1204-4cdb-bb61-daac59d8ab32"
 					(reference "A1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:Conn_01x02_Pin")
+		(at 156.21 69.85 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "326ac208-1ca3-435e-8232-2afd4baf1f70")
+		(property "Reference" "J7"
+			(at 156.845 64.77 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "Reset_all"
+			(at 159.258 58.674 90)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 156.21 69.85 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 156.21 69.85 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Generic connector, single row, 01x02, script generated"
+			(at 156.21 69.85 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "8386ce27-1730-43d1-9f12-c612714640ab")
+		)
+		(pin "2"
+			(uuid "bb0162aa-e3be-4cec-a8d1-5e956d4580d0")
+		)
+		(instances
+			(project "Schaltplan_box"
+				(path "/fda39497-1204-4cdb-bb61-daac59d8ab32"
+					(reference "J7")
 					(unit 1)
 				)
 			)

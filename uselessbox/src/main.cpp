@@ -2,37 +2,38 @@
 
 
 
-const int switches_pinout [8] = {2,3,4,5,6,7,8,9};
-long switches_steps[8] = {400,3000,6000,9000,12000,15000,18000,21000};
-long switcher_steps[3] = {0,100,200}; //[zero point, active, switch action]
-long opener_steps[2] = {0,200}; //[closed, opened box]
+const int switches_pinout [8] = {2,3,4,5,6,7};
+long switches_steps[6] = {20500,17000,13500,10000,6500,3500};
+int switcher_steps[3] = {0,800,1100}; //[zero point, active, switch action]
+int opener_steps[2] = {0,40}; //[closed, opened box]
+int array_switches[6] = {0,0,0,0,0,0};
 
 int current_switching_mode = 0;
 int next_switch = 0;
 
 //MOVER
 int current_position = 0;
-long current_step = 5000;
+long current_step = 20500;
 //OPENER
-long opener_current_step = 0;
+int opener_current_step = 0;
 //SWITCHER
-long switcher_current_step = 0;
+int switcher_current_step = 0;
 
 
 //Stepper speeds #todo set speeds properly
-int speed_mover_delay = 20;
-int speed_opener_delay = 20;
-int speed_switcher_delay = 20;
+int speed_mover_delay = 100;
+int speed_opener_delay = 5000;
+int speed_switcher_delay = 700;
 
-
+int queue_counter = 0;
 
 volatile bool button_changed = false;
 
 
 //----------------------FUNCTIONS-------------------------
-void main_movement_control(int next_switch);
+int main_movement_control(int next_switch);
 bool check_switch();
-void make_step(bool fd_or_bk, int pin_DIR, int pin_OPTO, int delay_time);
+void make_step(bool fd_or_bk, int pin_PUL, int pin_DIR, int delay_time);
 void move_arm_to_switch(int switch_select);
 
 int set_closest_switch();
@@ -45,11 +46,14 @@ void return_to_zero();
 
 
 bool open_close_box();
-void open_box(bool);
-int array_switches [8] = {0,0,0,0,0,0,0,0};
-int stack_past_switches [9] = {0,0,0,0,0,0,0,0,0};
+bool check_open_close_box();
+void read_switches();
+void open_box(int open_close);
+int stack_past_switches [6] = {-1,-1,-1,-1,-1,-1};
 
 
+unsigned long lastCheckTime = 0;
+unsigned long currentTime = 0;
 
 
 void setup() {
@@ -57,8 +61,8 @@ void setup() {
   {
     pinMode(switches_pinout[i],INPUT_PULLUP);  //pins for switches
   }
-  pinMode(A0, INPUT);  //reset_mover
-  pinMode(A1,INPUT);   //reset opener
+  pinMode(A0, INPUT_PULLUP);  //reset_mover
+  pinMode(A1,INPUT_PULLUP);   //reset opener
   pinMode(A2,INPUT);   //mode selection potentiometer
   pinMode(A3,INPUT_PULLUP);   //reset all
 
@@ -87,6 +91,8 @@ void setup() {
 
   Serial.begin(9600); 
   return_to_zero();
+  set_next_switch();
+  Serial.println(next_switch);
 
 }
 
@@ -115,19 +121,35 @@ ISR(PCINT0_vect) {
 
 
 void loop() {
-  if (button_changed) {
-    set_next_switch();  // Call function when any button is pressed
-    button_changed = false;  // Reset flag
-  }
+  currentTime = millis();  // Get the current time
+
+    if ((currentTime - lastCheckTime) >= 200) {  // Check if 200ms have passed
+        lastCheckTime = currentTime;  // Update the last check time
+        if (button_changed) {
+            set_next_switch();  // Call function when any button is pressed
+            Serial.print("changed");
+            button_changed = false;  // Reset flag
+        }
+    }
+
+
+  
   main_movement_control(next_switch);
   
+
+  //open_box(check_open_close_box());
+
+
+  //open_box(digitalRead(4));
+
 }
 
 
 //-----------------SETUP FUNCTIONS--------------------------
 bool check_open_close_box()               // gives back bool for an open or close box
 {
-  for (int i = 0; i < 8; i++)
+  read_switches();
+  for (int i = 0; i < 6; i++)
   {
     if (array_switches[i]==1)
     {
@@ -138,65 +160,77 @@ bool check_open_close_box()               // gives back bool for an open or clos
 }
 void update_switch_array()
 {
-  for (int i = 0; i < 8; i++)
+  for (int i = 0; i < 6; i++)
   {
     array_switches[i] = digitalRead(switches_pinout[i]);
   }
-      for (int e=0; e < 9; e++){
-        if (stack_past_switches[e] == 0){
-            stack_past_switches[e] = e+1;
-            break;
-        }
-      }
 }
 void return_to_zero(){
-  while(digitalRead(0)==0)                //required to switch first switch on to activate process
+  while(digitalRead(2)==0)                //required to switch first switch on to activate process
   {
-    delay(250);
+    delay(1);
   }
 
+
+//RESET OPENER
+  for (int i = 0; i < 20; i++)   //#todo check right direction
+  {
+    make_step(1,12,13,speed_opener_delay*2);
+  }
+  int back_to_zero = digitalRead(A1);
+  while (back_to_zero == 1)
+  {
+    make_step(0,12,13,speed_opener_delay*2);
+    back_to_zero = digitalRead(A1); //readswitch
+  }
+  for (int i = 0; i < 85; i++)
+  {
+    make_step(1,12,13,speed_opener_delay);
+    opener_current_step =  opener_current_step + 1;
+
+  }
+  opener_current_step = 0;               //set new 0
+  
 
   //MOVER RESET
-  for (int i = 0; i < 400; i++)
+  for (int i = 1; i < 400; i++)
   {
-    make_step(1,8,9,speed_mover_delay*2);
+    make_step(1,8,9,speed_mover_delay);
   }
-  int back_to_zero = digitalRead(A0);
-  while (back_to_zero == 0)
+  back_to_zero = digitalRead(A0);
+  while (back_to_zero == 1)
   {
-    make_step(0,8,9,speed_mover_delay*4);
+    make_step(0,8,9,speed_mover_delay);
     back_to_zero = digitalRead(A0); //readswitch
   }
   current_step = 0;               //set new 0
-
-
-  //RESET OPENER
-  for (int i = 0; i < 400; i++)   //#todo check right direction
-  {
-    make_step(1,10,11,speed_opener_delay*2);
-  }
-  back_to_zero = digitalRead(A1);
-  while (back_to_zero == 0)
-  {
-    make_step(0,10,11,speed_opener_delay*4);
-    back_to_zero = digitalRead(A0); //readswitch
-  }
-  opener_current_step = 0;               //set new 0
-
-
-  //RESET SWITCH
   move_arm_to_switch(0);
-  for (int i = 0; i < 400; i++)   //#todo check right direction 
+
+    //RESET SWITCHER
+  for (int i = 0; i < 30; i++)   //#todo check right direction 
   {
-    make_step(1,12,13,speed_switcher_delay*2);
+    make_step(0,10,11,speed_switcher_delay);
   }
   back_to_zero = digitalRead(2);
-  while (back_to_zero == 0)      
+  while (back_to_zero == 1)      
   {
-    make_step(0,10,11,speed_switcher_delay*4);
+    make_step(1,10,11,speed_switcher_delay);
     back_to_zero = digitalRead(2); //readswitch
   }
-  switcher_current_step = switcher_steps[1];  
+  switcher_current_step = switcher_steps[0];
+  // go to rest position
+  for (int i = 0; i < 1100; i++)
+  {
+    make_step(0,10,11,speed_switcher_delay);
+  }
+  switcher_current_step = switcher_steps[0];
+    
+
+
+  
+
+
+
 
 
 }
@@ -206,7 +240,7 @@ int set_mode(){
   {
     return 0;
   }
-  else if (mode_seletion > 340)
+  else if (mode_seletion > 680)
   {
     return 2;
   }
@@ -233,58 +267,62 @@ int findClosestIndex(long arr[], int arrSize, long targetValue) {
 
   return closestIndex;  // Return the index of the closest element
 }
-
+void read_switches() {
+  for (int i = 2; i < 8; i++) {
+      array_switches[i-2] = digitalRead(i);  // Read pin state into array
+  }
+}
 
 //----------------MAIN FUNCTIONS--------------------------------------------
-void main_movement_control(int position)             //goes to specified switch and flips switch
+int main_movement_control(int position)             //goes to specified switch and flips switch
 {
-  if (digitalRead(A3)==true)
+  if (position == -1)
   {
-    return_to_zero();
-  }
-  else
-  {
+    //open_box(0);
     return 0;
   }
-  
-  open_box(check_open_close_box());
+  //open_box(1);
+
   if (current_step < switches_steps[next_switch])
   {
     make_step(1,8,9,speed_mover_delay); //move 1step forward
+    current_step = current_step + 1;
   }
   else if (current_step > switches_steps[next_switch])
   {
     make_step(0,8,9,speed_mover_delay); //move 1step backwards
+    current_step = current_step - 1;
   }
   else if (current_step == switches_steps[next_switch])
   {
-    move_arm_to_switch(next_switch); //switches the switch
-    if (current_switching_mode==2)
-    {
-      int temporary_array[9];                                  //FIFO on array
-      for (int i = 1; i < 9; i++)
+    for (int i = 2; i > 0; i--)
+    {    
+      long steps_to_move_switcher = switcher_steps[i] -switcher_current_step;
+      if (steps_to_move_switcher > 0)
       {
-            temporary_array[i-1]=stack_past_switches[i];
-        }  
-        temporary_array[8]=0;
-      for (int i = 0; i < 8; i++)
+        for (long i = 0; i < steps_to_move_switcher; i++)
         {
-            stack_past_switches[i]=temporary_array[i];
+          make_step(1,10,11,speed_switcher_delay);
+          switcher_current_step = switcher_current_step + 1;
         }
+        
+      }   
+      else
+      {
+        for (long i = 0; i < -steps_to_move_switcher; i++)
+        {
+          make_step(0,10,11,speed_switcher_delay);
+          switcher_current_step = switcher_current_step - 1;
+        }
+      }
     }
-  }
     
-
+  return 0;
+  }
 }
 void set_next_switch()
 {
-  //read all the switch_pins
   update_switch_array();
-  //is posibility to switch
-  if (check_open_close_box()==true)
-  {
-    open_box(check_open_close_box());
-  }
   //set mode
   current_switching_mode = set_mode();
   //define next swich
@@ -300,101 +338,94 @@ void set_next_switch()
   {
     next_switch = set_user_switch();
   }
-  
+  Serial.println(current_switching_mode);
   
   
 }
 
 //----------------ACTION FUNCTIONS
-void open_box(bool open_close)             // opens or closes box depnding on input
+void open_box(int open_close)             // opens or closes box depnding on input
 {  
-  if (open_close==true) //open box
+
+  if (open_close == 1)
   {
-    long steps_to_move_opener = opener_steps[1] - opener_current_step;
-    long steps_to_move_switcher = switcher_steps[1] -switcher_current_step;
-    //move opener
-    if (steps_to_move_opener > 0)
+    if (opener_current_step < 40)
     {
-      for (long i = 0; i < steps_to_move_opener; i++)
+      for (int i = 0; i < 40; i++)
       {
         make_step(1,12,13,speed_opener_delay);
+        opener_current_step = opener_current_step + 1;
       }
-      
-    }   
-    else
-    {
-      for (long i = 0; i < -steps_to_move_opener; i++)
-      {
-        make_step(0,12,13,speed_opener_delay);
-      }
+       
     }
-    //move switcher
-    if (steps_to_move_switcher > 0)
+    
+    if (switcher_current_step > switcher_steps[1])
     {
-      for (long i = 0; i < steps_to_move_switcher; i++)
-      {
-        make_step(1,10,11,speed_switcher_delay);
-      }
-      
-    }   
-    else
-    {
-      for (long i = 0; i < -steps_to_move_switcher; i++)
+      while (switcher_current_step != switcher_steps[1])
       {
         make_step(0,10,11,speed_switcher_delay);
+        switcher_current_step = switcher_current_step - 1;
       }
+      
+      
     }
-
+    else
+    {
+      while (switcher_current_step != switcher_steps[1])
+      {
+        make_step(1,10,11,speed_switcher_delay);
+        switcher_current_step = switcher_current_step + 1;
+      }
+      
+    }
   }
-
-  else //close box
+  else if (open_close == 0)
   {
-    long steps_to_move_opener = opener_steps[0] - opener_current_step;
-    long steps_to_move_switcher = switcher_steps[0] -switcher_current_step;
-    //move opener
-    if (steps_to_move_opener > 0)
+    if (opener_current_step > 0)
     {
-      for (long i = 0; i < steps_to_move_opener; i++)
-      {
-        make_step(1,12,13,speed_opener_delay);
-      }
-      
-    }   
-    else
-    {
-      for (long i = 0; i < -steps_to_move_opener; i++)
+      for (int i = 0; i < 40; i++)
       {
         make_step(0,12,13,speed_opener_delay);
-      }
-    }
-    //move switcher
-    if (steps_to_move_switcher > 0)
-    {
-      for (long i = 0; i < steps_to_move_switcher; i++)
-      {
-        make_step(1,10,11,speed_switcher_delay);
+        opener_current_step = opener_current_step - 1;
       }
       
-    }   
-    else
+    }
+    if (switcher_current_step > switcher_steps[0])
     {
-      for (long i = 0; i < -steps_to_move_switcher; i++)
+      while (switcher_current_step != switcher_steps[0])
       {
         make_step(0,10,11,speed_switcher_delay);
+        switcher_current_step = switcher_current_step - 1;
       }
+      
+      
+    }
+    else
+    {
+      while (switcher_current_step != switcher_steps[0])
+      {
+        make_step(1,10,11,speed_switcher_delay);
+        switcher_current_step = switcher_current_step + 1;
+      }
+      
     }
   }
-  
 }
-void make_step(bool forward_backward, int pin_DIR, int pin_OPTO,int delay_time)
+void make_step(bool forward_backward, int pin_PUL, int pin_DIR,int delay_time)
 {
   if (forward_backward)
   {
-    //1 step forward
+    digitalWrite(pin_PUL,HIGH);
+    digitalWrite(pin_DIR,LOW);
+    digitalWrite(pin_PUL,LOW);
+    digitalWrite(pin_DIR,HIGH);
   }
   else
   {
-    //1 step backwards
+    digitalWrite(pin_PUL,LOW);
+    digitalWrite(pin_DIR,LOW);
+    digitalWrite(pin_PUL,HIGH);
+    digitalWrite(pin_DIR,HIGH);
   }
   delayMicroseconds(delay_time);
   
@@ -411,6 +442,7 @@ void move_arm_to_switch(int switch_select)
     for (long i = 0; i < steps_to_move; i++)
     {
       make_step(1,8,9,speed_mover_delay);
+      current_step = current_step + 1; 
     }
     
   }
@@ -419,6 +451,7 @@ void move_arm_to_switch(int switch_select)
     for (long i = 0; i < -steps_to_move; i++)
     {
       make_step(0,8,9,speed_mover_delay);
+      current_position = current_position -1;
     }
   }
   
@@ -428,66 +461,57 @@ void move_arm_to_switch(int switch_select)
 int set_closest_switch()                       // flips closest switch
 {
 
-  int back = 0;                                  // checks distance back and front
-  int front = 0;
-  current_position = findClosestIndex(switches_steps, 8, current_step);
+  current_position = findClosestIndex(switches_steps, 6, current_step);
 
-  for (int i = current_position; i <= 8; i++)
-  {
-    if (array_switches[i]==1)
-    {
-      break;
-    }
-    else
-    {
-      front = front + 1;
-    }
+  for (int offset = 0; offset < 6; offset++) {
+    int left = current_position - offset;
+    int right = current_position + offset;
 
-  }
-
-  for (int i = current_position; i >= 0; i--)
-  {
-    if (array_switches[i]==1)
-    {
-      break;
+    if (left >= 0 && array_switches[left] == 1) {
+        return left;  // Closest active element on the left
     }
-    else
-    {
-      back = back + 1;
+    if (right < 6 && array_switches[right] == 1) {
+        return right;  // Closest active element on the right
     }
-  }
-
-  if (front == back)                       //flips closest switch
-  {
-    return (current_position-back);
-  }
-  else if (front < back)
-  {
-    return (current_position + front);
-  }
-  else
-  {
-    return (current_position - back);
-  }
+}
+return -1;
 }
 //------------------MODE 2 (RANDOM SWITCH)-------------------------------------
 int set_random_switch(){
   int counter_active_switches = 0;
-  int array_active_switches[8] ={0,0,0,0,0,0,0,0};
-  for (int i = 0; i < 8; i++)
+  int offset_array_active_switches = 0;
+  int array_active_switches[6] ={0,0,0,0,0,0};
+  for (int i = 0; i < 6; i++)
   {
       if (array_switches[i]==1)
       {
-        array_active_switches[i] = i;
+        array_active_switches[i-offset_array_active_switches] = i;
         counter_active_switches += 1;
       }
+      else
+      {
+        offset_array_active_switches = offset_array_active_switches + 1;
+      }
   }
-  int random_switch_auswahl = random(counter_active_switches);
+if (counter_active_switches==0)
+{
+  return -1;
+}
+
+
+  int random_switch_auswahl = random(0,counter_active_switches);
   return array_active_switches[random_switch_auswahl];
 }
 //-----------------MODE 3 (FOLLOW USER)-----------------------------------------
 int set_user_switch(){
-  return (stack_past_switches[0]);
-
+  for (int i = 5; i >= 0; i--)
+  {
+    if (stack_past_switches[i] != -1)
+    {
+      return stack_past_switches [i];
+    }
+    
+  }
+  return 0;
 }
 
