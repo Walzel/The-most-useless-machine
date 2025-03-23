@@ -2,11 +2,10 @@
 
 
 
-const int switches_pinout [8] = {2,3,4,5,6,7};
-long switches_steps[6] = {20500, 17240, 13980, 10720, 7460, 4200};
-int switcher_steps[3] = {0,800,1100}; //[zero point, active, switch action]
-int opener_steps[2] = {0,60}; //[closed, opened box]
+//-------------GENERAL----------------
+const int switches_pinout [6] = {2,3,4,5,6,7};
 int array_switches[6] = {0,0,0,0,0,0};
+volatile bool button_changed = false;
 
 int current_switching_mode = 0;
 int next_switch = 0;
@@ -14,20 +13,21 @@ int next_switch = 0;
 //MOVER
 int current_position = 0;
 long current_step = 20500;
+long switches_steps[6] = {20700, 17400, 13980, 10620, 7160, 4200};
 //OPENER
 int opener_current_step = 0;
+int opener_steps[2] = {0,60}; //[closed, opened box]
 //SWITCHER
 int switcher_current_step = 0;
+int switcher_steps[3] = {0,800,1100}; //[zero point, active, switch action]
 
 
-//Stepper speeds #todo set speeds properly
+//Stepper speeds
 int speed_mover_delay = 100;
 int speed_opener_delay = 3000;
 int speed_switcher_delay = 300;
 
-int queue_counter = 0;
 
-volatile bool button_changed = false;
 
 
 //----------------------FUNCTIONS-------------------------
@@ -50,7 +50,7 @@ bool check_open_close_box();
 void read_switches();
 void open_box(int open_close);
 
-
+//-------millis interrupt-----------------
 unsigned long lastCheckTime = 0;
 unsigned long currentTime = 0;
 
@@ -84,9 +84,6 @@ void setup() {
   // Enable PCINT for pins 2-9
   PCMSK2 |= (1 << PCINT18) | (1 << PCINT19) | (1 << PCINT20) | (1 << PCINT21) | (1 << PCINT22) | (1 << PCINT23); // D2-D7
   PCMSK0 |= (1 << PCINT0) | (1 << PCINT1); // D8-D9
-
-
-
 
   Serial.begin(9600); 
   return_to_zero();
@@ -135,7 +132,10 @@ void loop()
     }
   
   
-  main_movement_control(next_switch);
+
+
+  //-----------------MAIN MOVEMENT-------------------
+  main_movement_control(next_switch);  
 }
 
 
@@ -167,7 +167,7 @@ void return_to_zero(){
 
 
 //RESET OPENER
-  for (int i = 0; i < 20; i++)   //#todo check right direction
+  for (int i = 0; i < 20; i++)
   {
     make_step(1,12,13,speed_opener_delay*2);
   }
@@ -175,7 +175,7 @@ void return_to_zero(){
   while (back_to_zero == 1)
   {
     make_step(0,12,13,speed_opener_delay*2);
-    back_to_zero = digitalRead(A1); //readswitch
+    back_to_zero = digitalRead(A1);
   }
   for (int i = 0; i < 85; i++)
   {
@@ -198,7 +198,7 @@ void return_to_zero(){
   while (back_to_zero == 1)
   {
     make_step(0,8,9,speed_mover_delay);
-    back_to_zero = digitalRead(A0); //readswitch
+    back_to_zero = digitalRead(A0);
   }
   current_step = 0;               //set new 0
   move_arm_to_switch(0);
@@ -207,20 +207,22 @@ void return_to_zero(){
 
 
     //RESET SWITCHER
-  for (int i = 0; i < 30; i++)   //#todo check right direction 
+  for (int i = 0; i < 30; i++) 
   {
     make_step(0,10,11,speed_switcher_delay);
   }
   back_to_zero = digitalRead(2);
-  for (int i = 0; i < opener_steps[1]; i++)
+
+  for (int i = 0; i < opener_steps[1]; i++) //open box for reset
   {
     make_step(1,12,13,speed_opener_delay);
     opener_current_step =  opener_current_step + 1;
   }
+
   while (back_to_zero == 1)      
   {
     make_step(1,10,11,speed_switcher_delay);
-    back_to_zero = digitalRead(2); //readswitch
+    back_to_zero = digitalRead(2);
   }
   switcher_current_step = switcher_steps[0];
   // go to rest position
@@ -230,13 +232,6 @@ void return_to_zero(){
   }
   switcher_current_step = switcher_steps[0];
     
-
-
-  
-
-
-
-
 
 }
 int set_mode(){
@@ -281,14 +276,15 @@ void read_switches() {
 //----------------MAIN FUNCTIONS--------------------------------------------
 int main_movement_control(int position)             //goes to specified switch and flips switch
 {
-  if (position == -1)
+
+  
+  if (position == -1)                                //check switch available
   {
     open_box(0);
     return 0;
   }
-  //open_box(1);
-
-  if (current_step < switches_steps[next_switch])
+                                                        //move toward available switch
+  if (current_step < switches_steps[next_switch])   
   {
     open_box(0);
     make_step(1,8,9,speed_mover_delay); //move 1step forward
@@ -300,7 +296,7 @@ int main_movement_control(int position)             //goes to specified switch a
     make_step(0,8,9,speed_mover_delay); //move 1step backwards
     current_step = current_step - 1;
   }
-  else if (current_step == switches_steps[next_switch])
+  else if (current_step == switches_steps[next_switch])               //switch reached switch
   {
     open_box(1);
     for (int i = 2; i > 0; i--)
@@ -354,6 +350,9 @@ void set_next_switch()
 void open_box(int open_close)             // opens or closes box depnding on input
 {  
 
+
+
+  //opens box
   if (open_close == 1)
   {
     if (opener_current_step < opener_steps[1])
@@ -373,8 +372,6 @@ void open_box(int open_close)             // opens or closes box depnding on inp
         make_step(0,10,11,speed_switcher_delay);
         switcher_current_step = switcher_current_step - 1;
       }
-      
-      
     }
     else
     {
@@ -386,9 +383,10 @@ void open_box(int open_close)             // opens or closes box depnding on inp
       
     }
   }
+
+  //closes box
   else if (open_close == 0)
   {
-    
     if (switcher_current_step > switcher_steps[0])
     {
       while (switcher_current_step != switcher_steps[0])
@@ -396,8 +394,7 @@ void open_box(int open_close)             // opens or closes box depnding on inp
         make_step(0,10,11,speed_switcher_delay);
         switcher_current_step = switcher_current_step - 1;
       }
-      
-      
+
     }
     else
     {
@@ -412,7 +409,7 @@ void open_box(int open_close)             // opens or closes box depnding on inp
     {
       for (int i = 0; i < opener_steps[1]; i++)
       {
-        make_step(0,12,13,speed_opener_delay);
+        make_step(0,12,13,speed_opener_delay/2);
         opener_current_step = opener_current_step - 1;
       }
       
@@ -437,10 +434,6 @@ void make_step(bool forward_backward, int pin_PUL, int pin_DIR,int delay_time)
   }
   delayMicroseconds(delay_time);
   
-}
-void switches_switch(int switch_select)
-{
-  make_step(1,10,11,speed_switcher_delay);
 }
 void move_arm_to_switch(int switch_select)
 {
@@ -519,10 +512,7 @@ int set_user_switch(){
     {
       return secret_order[i];
     }
-    
   }
-  
-  
   return -1;
 }
 
