@@ -113,13 +113,13 @@ ISR(PCINT0_vect) {
   // Check for any pin change in the range D8-D9
   for (int i = 8; i <= 9; i++) {
       if (digitalRead(i) == LOW) { // Button pressed (active LOW)
-          button_changed = true;
+          //button_changed = true;
           break;  // Exit loop once a button press is detected
       }
   }
 }
 
-
+int coutner = 0;
 void loop() {
   currentTime = millis();  // Get the current time
 
@@ -127,7 +127,8 @@ void loop() {
         lastCheckTime = currentTime;  // Update the last check time
         if (button_changed) {
             set_next_switch();  // Call function when any button is pressed
-            Serial.print("changed");
+            Serial.print(coutner);
+            coutner ++;
             button_changed = false;  // Reset flag
         }
     }
